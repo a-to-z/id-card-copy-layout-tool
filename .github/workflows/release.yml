@@ -13,8 +13,7 @@ jobs:
     runs-on: ubuntu-latest
     if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
     outputs:
-      release_id: ${{ steps.create_release.outputs.id }}
-      upload_url: ${{ steps.create_release.outputs.upload_url }}
+      version: ${{ steps.get_version.outputs.VERSION }}
     steps:
     - uses: actions/checkout@v4
     
@@ -23,15 +22,12 @@ jobs:
       run: echo "VERSION=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
     
     - name: Create Release
-      id: create_release
-      uses: actions/create-release@v1
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      with:
-        tag_name: ${{ steps.get_version.outputs.VERSION }}
-        release_name: ID Card Maker ${{ steps.get_version.outputs.VERSION }}
-        body: |
-          ## 🆕 ID Card Maker Release ${{ steps.get_version.outputs.VERSION }}
+      run: |
+        gh release create ${{ steps.get_version.outputs.VERSION }} \
+          --title "ID Card Maker ${{ steps.get_version.outputs.VERSION }}" \
+          --notes "## 🆕 ID Card Maker Release ${{ steps.get_version.outputs.VERSION }}
           
           Professional bulk ID card printing solution with improved UI and features.
           
@@ -44,29 +40,27 @@ jobs:
           - **Multiple Formats**: Support for various image formats (JPEG, PNG, TIFF, etc.)
           
           ### 📦 Downloads:
-          - **Windows**: `id-card-maker-windows.exe` - Standalone executable for Windows
-          - **macOS**: `id-card-maker-macos.zip` - Application bundle for macOS
-          - **Linux**: `id-card-maker-linux.tar.gz` - Executable for Linux distributions
+          - **Windows**: \`id-card-maker-windows.exe\` - Standalone executable for Windows
+          - **macOS**: \`id-card-maker-macos.zip\` - Application bundle for macOS
+          - **Linux**: \`id-card-maker-linux.tar.gz\` - Executable for Linux distributions
           
           ### 🚀 Quick Start:
           1. Download the appropriate file for your operating system
           2. Extract (if needed) and run the application
           3. Load your ID card images using the Browse buttons
           4. Adjust settings as needed (card dimensions, spacing, etc.)
-          5. Click "Generate PDF Files" to create print-ready PDFs
+          5. Click \"Generate PDF Files\" to create print-ready PDFs
           
           ### 💡 Tips:
           - Use the crop editor for precise card boundary selection
           - Enable crop marks for easier cutting
-          - For duplex printing, enable "Rotate back images 180°"
+          - For duplex printing, enable \"Rotate back images 180°\"
           
           ---
           
           **System Requirements:**
           - Windows 10/11, macOS 10.14+, or modern Linux distribution
-          - No Python installation required - fully self-contained executables
-        draft: false
-        prerelease: false
+          - No Python installation required - fully self-contained executables"
 
   build-windows:
     runs-on: windows-latest
@@ -104,21 +98,18 @@ jobs:
         copy LICENSE package\ 2>nul || echo "No LICENSE file found"
     
     - name: Upload Windows artifact
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: id-card-maker-windows
         path: package/
     
     - name: Upload Windows Release Asset
       if: needs.create-release.result == 'success'
-      uses: actions/upload-release-asset@v1
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      with:
-        upload_url: ${{ needs.create-release.outputs.upload_url }}
-        asset_path: ./dist/ID-Card-Maker.exe
-        asset_name: id-card-maker-windows.exe
-        asset_content_type: application/octet-stream
+      run: |
+        gh release upload ${{ needs.create-release.outputs.version }} \
+          ./dist/ID-Card-Maker.exe#id-card-maker-windows.exe
 
   build-macos:
     runs-on: macos-latest
@@ -181,21 +172,18 @@ jobs:
         zip -r id-card-maker-macos.zip "ID Card Maker.app"
     
     - name: Upload macOS artifact
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: id-card-maker-macos
         path: id-card-maker-macos.zip
     
     - name: Upload macOS Release Asset
       if: needs.create-release.result == 'success'
-      uses: actions/upload-release-asset@v1
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      with:
-        upload_url: ${{ needs.create-release.outputs.upload_url }}
-        asset_path: ./id-card-maker-macos.zip
-        asset_name: id-card-maker-macos.zip
-        asset_content_type: application/zip
+      run: |
+        gh release upload ${{ needs.create-release.outputs.version }} \
+          ./id-card-maker-macos.zip
 
   build-linux:
     runs-on: ubuntu-latest
@@ -248,18 +236,15 @@ jobs:
         tar -czf id-card-maker-linux.tar.gz -C package .
     
     - name: Upload Linux artifact
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: id-card-maker-linux
         path: id-card-maker-linux.tar.gz
     
     - name: Upload Linux Release Asset
       if: needs.create-release.result == 'success'
-      uses: actions/upload-release-asset@v1
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      with:
-        upload_url: ${{ needs.create-release.outputs.upload_url }}
-        asset_path: ./id-card-maker-linux.tar.gz
-        asset_name: id-card-maker-linux.tar.gz
-        asset_content_type: application/gzip
+      run: |
+        gh release upload ${{ needs.create-release.outputs.version }} \
+          ./id-card-maker-linux.tar.gz
