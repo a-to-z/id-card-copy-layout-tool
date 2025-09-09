@@ -73,6 +73,14 @@ jobs:
     steps:
     - uses: actions/checkout@v4
     
+    - name: Debug - List files
+      shell: cmd
+      run: |
+        echo Current directory contents:
+        dir
+        echo Checking for LICENSE file:
+        if exist LICENSE (echo LICENSE found) else (echo LICENSE not found)
+    
     - name: Set up Python
       uses: actions/setup-python@v4
       with:
@@ -127,7 +135,12 @@ jobs:
         mkdir package
         copy dist\ID-Card-Maker.exe package\
         copy README.md package\
-        copy LICENSE package\
+        if exist LICENSE (
+          copy LICENSE package\
+        ) else (
+          echo LICENSE file not found, creating default...
+          echo MIT License > package\LICENSE
+        )
     
     - name: Upload Windows artifact
       uses: actions/upload-artifact@v4
@@ -176,7 +189,11 @@ jobs:
         mkdir -p "ID Card Maker.app/Contents/Resources"
         cp dist/ID-Card-Maker "ID Card Maker.app/Contents/MacOS/"
         cp README.md "ID Card Maker.app/Contents/Resources/"
-        cp LICENSE "ID Card Maker.app/Contents/Resources/"
+        if [ -f LICENSE ]; then
+          cp LICENSE "ID Card Maker.app/Contents/Resources/"
+        else
+          echo "MIT License" > "ID Card Maker.app/Contents/Resources/LICENSE"
+        fi
         
         cat > "ID Card Maker.app/Contents/Info.plist" << EOF
         <?xml version="1.0" encoding="UTF-8"?>
@@ -254,7 +271,11 @@ jobs:
         mkdir package
         cp dist/id-card-maker package/
         cp README.md package/
-        cp LICENSE package/
+        if [ -f LICENSE ]; then
+          cp LICENSE package/
+        else
+          echo "MIT License" > package/LICENSE
+        fi
         
         # Create a simple run script
         cat > package/run.sh << 'EOF'
