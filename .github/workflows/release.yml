@@ -27,10 +27,41 @@ jobs:
       id: get_version
       run: |
         if [[ "${{ github.ref }}" == "refs/heads/release" ]]; then
-          # Generate version from timestamp and short commit hash
-          TIMESTAMP=$(date +"%Y.%m.%d")
-          SHORT_SHA=$(git rev-parse --short HEAD)
-          VERSION="v${TIMESTAMP}-${SHORT_SHA}"
+          # Get the latest tag to determine next version
+          git fetch --tags
+          LATEST_TAG=$(git tag -l "v*.*.*" | sort -V | tail -1)
+          
+          if [[ -z "$LATEST_TAG" ]]; then
+            # No tags exist, start with v1.0.0
+            VERSION="v1.0.0"
+          else
+            # Extract version numbers
+            LATEST_TAG=${LATEST_TAG#v}  # Remove 'v' prefix
+            IFS='.' read -ra VERSION_PARTS <<< "$LATEST_TAG"
+            MAJOR=${VERSION_PARTS[0]}
+            MINOR=${VERSION_PARTS[1]}
+            PATCH=${VERSION_PARTS[2]}
+            
+            # Check commit message for version bump hints
+            COMMIT_MSG=$(git log -1 --pretty=format:"%s %b")
+            
+            if echo "$COMMIT_MSG" | grep -i -E "(breaking|major)" > /dev/null; then
+              # Major version bump
+              MAJOR=$((MAJOR + 1))
+              MINOR=0
+              PATCH=0
+            elif echo "$COMMIT_MSG" | grep -i -E "(feature|minor|feat)" > /dev/null; then
+              # Minor version bump
+              MINOR=$((MINOR + 1))
+              PATCH=0
+            else
+              # Default to patch version bump
+              PATCH=$((PATCH + 1))
+            fi
+            
+            VERSION="v${MAJOR}.${MINOR}.${PATCH}"
+          fi
+          
           echo "VERSION=${VERSION}" >> $GITHUB_OUTPUT
           echo "IS_AUTO_RELEASE=true" >> $GITHUB_OUTPUT
         else
@@ -194,7 +225,7 @@ jobs:
         path: package/
     
     - name: Upload Windows Release Asset
-      if: needs.create-release.result == 'success' && startsWith(github.ref, 'refs/tags/v')
+      if: needs.create-release.result == 'success'
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       run: |
@@ -272,7 +303,7 @@ jobs:
         path: id-card-maker-macos.zip
     
     - name: Upload macOS Release Asset
-      if: needs.create-release.result == 'success' && startsWith(github.ref, 'refs/tags/v')
+      if: needs.create-release.result == 'success'
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       run: |
@@ -340,7 +371,7 @@ jobs:
         path: id-card-maker-linux.tar.gz
     
     - name: Upload Linux Release Asset
-      if: needs.create-release.result == 'success' && startsWith(github.ref, 'refs/tags/v')
+      if: needs.create-release.result == 'success'
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       run: |
