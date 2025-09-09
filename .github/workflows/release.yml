@@ -127,7 +127,7 @@ jobs:
         mkdir package
         copy dist\ID-Card-Maker.exe package\
         copy README.md package\
-        copy LICENSE package\ 2>nul || echo "No LICENSE file found"
+        copy LICENSE package\
     
     - name: Upload Windows artifact
       uses: actions/upload-artifact@v4
@@ -176,7 +176,7 @@ jobs:
         mkdir -p "ID Card Maker.app/Contents/Resources"
         cp dist/ID-Card-Maker "ID Card Maker.app/Contents/MacOS/"
         cp README.md "ID Card Maker.app/Contents/Resources/"
-        [ -f LICENSE ] && cp LICENSE "ID Card Maker.app/Contents/Resources/" || true
+        cp LICENSE "ID Card Maker.app/Contents/Resources/"
         
         cat > "ID Card Maker.app/Contents/Info.plist" << EOF
         <?xml version="1.0" encoding="UTF-8"?>
@@ -254,7 +254,7 @@ jobs:
         mkdir package
         cp dist/id-card-maker package/
         cp README.md package/
-        [ -f LICENSE ] && cp LICENSE package/ || true
+        cp LICENSE package/
         
         # Create a simple run script
         cat > package/run.sh << 'EOF'
