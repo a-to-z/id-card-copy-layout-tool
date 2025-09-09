@@ -15,23 +15,68 @@ permissions:
 jobs:
   create-release:
     runs-on: ubuntu-latest
-    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
+    if: github.event_name == 'push' && (github.ref == 'refs/heads/release' || startsWith(github.ref, 'refs/tags/v'))
     outputs:
       version: ${{ steps.get_version.outputs.VERSION }}
     steps:
     - uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
     
-    - name: Get version from tag
+    - name: Generate version number
       id: get_version
-      run: echo "VERSION=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+      run: |
+        if [[ "${{ github.ref }}" == "refs/heads/release" ]]; then
+          # Generate version from timestamp and short commit hash
+          TIMESTAMP=$(date +"%Y.%m.%d")
+          SHORT_SHA=$(git rev-parse --short HEAD)
+          VERSION="v${TIMESTAMP}-${SHORT_SHA}"
+          echo "VERSION=${VERSION}" >> $GITHUB_OUTPUT
+          echo "IS_AUTO_RELEASE=true" >> $GITHUB_OUTPUT
+        else
+          # Use existing tag
+          VERSION="${GITHUB_REF#refs/tags/}"
+          echo "VERSION=${VERSION}" >> $GITHUB_OUTPUT
+          echo "IS_AUTO_RELEASE=false" >> $GITHUB_OUTPUT
+        fi
+        echo "Generated version: ${VERSION}"
+    
+    - name: Create or update tag
+      if: steps.get_version.outputs.IS_AUTO_RELEASE == 'true'
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      run: |
+        VERSION="${{ steps.get_version.outputs.VERSION }}"
+        git config user.name "github-actions[bot]"
+        git config user.email "github-actions[bot]@users.noreply.github.com"
+        
+        # Delete tag if it exists
+        git tag -d "$VERSION" 2>/dev/null || true
+        git push origin ":refs/tags/$VERSION" 2>/dev/null || true
+        
+        # Create new tag
+        git tag -a "$VERSION" -m "Auto-release $VERSION"
+        git push origin "$VERSION"
     
     - name: Create Release
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       run: |
-        gh release create ${{ steps.get_version.outputs.VERSION }} \
-          --title "ID Card Maker ${{ steps.get_version.outputs.VERSION }}" \
-          --notes "## 🆕 ID Card Maker Release ${{ steps.get_version.outputs.VERSION }}
+        VERSION="${{ steps.get_version.outputs.VERSION }}"
+        COMMIT_MSG=$(git log -1 --pretty=format:"%s")
+        COMMIT_HASH=$(git rev-parse --short HEAD)
+        
+        # Delete existing release if it exists (for auto-releases)
+        if [[ "${{ steps.get_version.outputs.IS_AUTO_RELEASE }}" == "true" ]]; then
+          gh release delete "$VERSION" --yes 2>/dev/null || true
+        fi
+        
+        gh release create "$VERSION" \
+          --title "ID Card Maker $VERSION" \
+          --notes "## 🆕 ID Card Maker Release $VERSION
+          
+          **Latest Changes:** $COMMIT_MSG  
+          **Commit:** $COMMIT_HASH
           
           Professional bulk ID card printing solution with improved UI and features.
           
@@ -44,7 +89,7 @@ jobs:
           - **Multiple Formats**: Support for various image formats (JPEG, PNG, TIFF, etc.)
           
           ### 📦 Downloads:
-          - **Windows**: \`id-card-maker-windows.exe\` - Standalone executable for Windows
+          - **Windows**: \`ID-Card-Maker.exe\` - Standalone executable for Windows
           - **macOS**: \`id-card-maker-macos.zip\` - Application bundle for macOS
           - **Linux**: \`id-card-maker-linux.tar.gz\` - Executable for Linux distributions
           
