@@ -51,7 +51,7 @@ A professional bulk ID card printing solution with advanced features for precise
 #### Option 1: Download Prebuilt Executable
 1. Go to the [Releases](../../releases) page
 2. Download the appropriate file for your operating system:
-   - **Windows**: `id-card-maker-windows.exe`
+   - **Windows**: `ID-Card-Maker.exe`
    - **macOS**: `id-card-maker-macos.zip`
    - **Linux**: `id-card-maker-linux.tar.gz`
 3. Extract (if needed) and run the application
@@ -90,7 +90,12 @@ python build.py
 
 ### GitHub Actions (Automatic)
 - **Push to `release` branch**: Automatically creates builds for all platforms AND generates a GitHub release
-- **Manual tags**: Create a tag starting with `v` (e.g., `v1.0.0`) for manual version control
+- **Semantic Versioning**: Automatically increments version numbers (v1.0.0, v1.0.1, v1.1.0, etc.)
+- **Smart Version Bumps**:
+  - **Patch** (v1.0.0 → v1.0.1): Default for bug fixes and minor changes
+  - **Minor** (v1.0.0 → v1.1.0): Include "feature", "minor", or "feat" in commit message
+  - **Major** (v1.0.0 → v2.0.0): Include "breaking" or "major" in commit message
+- **Fully Automated**: No manual tagging or release creation needed
 
 ## ⚙️ Configuration
 
@@ -118,10 +123,12 @@ id-card-copy-layout-tool/
 ├── build.spec               # PyInstaller configuration
 ├── README.md                # This file
 ├── .gitignore              # Git ignore rules
+├── icon.ico                # Application icon
+├── LICENSE                 # MIT License
 ├── temp/                   # Temporary files (auto-created)
 └── .github/
     └── workflows/
-        └── release.yml     # GitHub Actions workflow
+        └── release.yml     # Automated release workflow
 ```
 
 ## 🐛 Troubleshooting
