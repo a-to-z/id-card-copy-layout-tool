@@ -8,6 +8,10 @@ on:
   pull_request:
     branches: [ release ]
 
+permissions:
+  contents: write
+  actions: read
+
 jobs:
   create-release:
     runs-on: ubuntu-latest
@@ -81,6 +85,7 @@ jobs:
         pip install pyinstaller
     
     - name: Build Windows executable
+      shell: cmd
       run: |
         pyinstaller --clean --onefile --windowed --name "ID-Card-Maker" ^
           --icon=icon.ico ^
@@ -91,6 +96,7 @@ jobs:
           id_card_maker.py
     
     - name: Create Windows package
+      shell: cmd
       run: |
         mkdir package
         copy dist\ID-Card-Maker.exe package\
@@ -104,12 +110,12 @@ jobs:
         path: package/
     
     - name: Upload Windows Release Asset
-      if: needs.create-release.result == 'success'
+      if: needs.create-release.result == 'success' && startsWith(github.ref, 'refs/tags/v')
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       run: |
         gh release upload ${{ needs.create-release.outputs.version }} \
-          ./dist/ID-Card-Maker.exe#id-card-maker-windows.exe
+          ./dist/ID-Card-Maker.exe --clobber
 
   build-macos:
     runs-on: macos-latest
@@ -178,12 +184,12 @@ jobs:
         path: id-card-maker-macos.zip
     
     - name: Upload macOS Release Asset
-      if: needs.create-release.result == 'success'
+      if: needs.create-release.result == 'success' && startsWith(github.ref, 'refs/tags/v')
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       run: |
         gh release upload ${{ needs.create-release.outputs.version }} \
-          ./id-card-maker-macos.zip
+          ./id-card-maker-macos.zip --clobber
 
   build-linux:
     runs-on: ubuntu-latest
@@ -242,9 +248,9 @@ jobs:
         path: id-card-maker-linux.tar.gz
     
     - name: Upload Linux Release Asset
-      if: needs.create-release.result == 'success'
+      if: needs.create-release.result == 'success' && startsWith(github.ref, 'refs/tags/v')
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       run: |
         gh release upload ${{ needs.create-release.outputs.version }} \
-          ./id-card-maker-linux.tar.gz
+          ./id-card-maker-linux.tar.gz --clobber
