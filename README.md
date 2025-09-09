@@ -89,8 +89,8 @@ python build.py
 ```
 
 ### GitHub Actions (Automatic)
-- Push to `release` branch to trigger builds for all platforms
-- Create a tag starting with `v` (e.g., `v1.0.0`) to create a GitHub release
+- **Push to `release` branch**: Automatically creates builds for all platforms AND generates a GitHub release
+- **Manual tags**: Create a tag starting with `v` (e.g., `v1.0.0`) for manual version control
 
 ## ⚙️ Configuration
 
