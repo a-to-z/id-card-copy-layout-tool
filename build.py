@@ -47,7 +47,7 @@ def install_dependencies():
 
 def create_icon():
     """Create a simple icon if none exists"""
-    if not os.path.exists('icon.ico') and platform.system() == 'Windows':
+    if not os.path.exists('icon.ico'):
         print("🎨 Creating default icon...")
         try:
             from PIL import Image, ImageDraw
@@ -72,6 +72,8 @@ def create_icon():
             print("✅ Default icon created")
         except ImportError:
             print("⚠️  Could not create icon (PIL not available)")
+    else:
+        print("ℹ️  Icon already exists")
 
 def build_executable():
     """Build the executable using PyInstaller"""

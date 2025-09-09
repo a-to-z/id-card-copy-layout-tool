@@ -84,6 +84,32 @@ jobs:
         pip install -r requirements.txt
         pip install pyinstaller
     
+    - name: Verify icon exists
+      run: |
+        if (Test-Path "icon.ico") {
+            Write-Host "Icon found: icon.ico"
+        } else {
+            Write-Host "Creating default icon..."
+            python -c "
+        from PIL import Image, ImageDraw
+        import os
+        
+        size = (64, 64)
+        img = Image.new('RGBA', size, (70, 130, 180, 255))
+        draw = ImageDraw.Draw(img)
+        margin = 8
+        draw.rectangle([margin, margin, size[0]-margin, size[1]-margin], 
+                     fill=(255, 255, 255, 255), outline=(0, 0, 0, 255), width=2)
+        for i in range(3):
+            y = margin + 15 + i * 8
+            draw.rectangle([margin + 5, y, size[0] - margin - 5, y + 2], 
+                         fill=(100, 100, 100, 255))
+        img.save('icon.ico', format='ICO', sizes=[(32, 32), (64, 64)])
+        print('Created default icon')
+            "
+            Write-Host "Default icon created"
+        }
+    
     - name: Build Windows executable
       shell: cmd
       run: |
