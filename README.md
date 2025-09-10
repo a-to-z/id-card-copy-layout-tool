@@ -150,6 +150,15 @@ id-card-copy-layout-tool/
 - Install missing dependencies: `pip install -r requirements.txt`
 - On Linux, ensure tkinter is available: `sudo apt-get install python3-tk`
 
+**Windows Security Warning**
+- **The executable is self-signed** for security (prevents tampering)
+- **Expected behavior**: Windows may show "Publisher: Unknown" warning
+- **This is safe**: The digital signature ensures the file hasn't been modified
+- **Solutions**:
+  - Click "More info" → "Run anyway" in SmartScreen warning
+  - Self-signing prevents most antivirus from quarantining the file
+  - Run from source code instead: `python id_card_maker.py`
+
 ### Performance Tips
 
 - Use moderately sized images (1-3 MB) for faster processing

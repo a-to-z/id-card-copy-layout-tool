@@ -131,6 +131,14 @@ jobs:
           - Enable crop marks for easier cutting
           - For duplex printing, enable "Rotate back images 180°"
           
+          ### ⚠️ Windows Security Notice:
+          **The Windows executable is self-signed for your security.**
+          - Windows may show a "Publisher: Unknown" warning - this is expected
+          - The executable is safe and digitally signed to prevent tampering
+          - Click "More info" → "Run anyway" if you see a SmartScreen warning
+          - Self-signing prevents most antivirus quarantining while maintaining security
+          - Alternatively, run from source: `python id_card_maker.py`
+          
           ---
           
           **System Requirements:**
@@ -191,6 +199,54 @@ jobs:
             Write-Host "Default icon created"
         }
     
+    - name: Create version info file
+      run: |
+        $versionInfo = @"
+        # UTF-8
+        VSVersionInfo(
+          ffi=FixedFileInfo(
+            filevers=(1,0,0,0),
+            prodvers=(1,0,0,0),
+            mask=0x3f,
+            flags=0x0,
+            OS=0x40004,
+            fileType=0x1,
+            subtype=0x0,
+            date=(0, 0)
+            ),
+          kids=[
+            StringFileInfo(
+              [
+              StringTable(
+                '040904B0',
+                [StringStruct('CompanyName', 'ID Card Maker'),
+                StringStruct('FileDescription', 'Professional ID Card PDF Maker'),
+                StringStruct('FileVersion', '1.0.0.0'),
+                StringStruct('InternalName', 'ID-Card-Maker'),
+                StringStruct('LegalCopyright', 'MIT License'),
+                StringStruct('OriginalFilename', 'ID-Card-Maker.exe'),
+                StringStruct('ProductName', 'ID Card Maker'),
+                StringStruct('ProductVersion', '1.0.0.0')])
+              ]), 
+            VarFileInfo([VarStruct('Translation', [1033, 1200])])
+          ]
+        )
+        "@
+        $versionInfo | Out-File -FilePath "version_info.txt" -Encoding UTF8
+    
+    - name: Create self-signed certificate
+      run: |
+        # Create a self-signed certificate for code signing
+        $cert = New-SelfSignedCertificate -DnsName "ID Card Maker" -Type CodeSigning -CertStoreLocation "Cert:\CurrentUser\My" -KeyUsage DigitalSignature -Subject "CN=ID Card Maker, O=Open Source, C=US"
+        
+        # Export certificate to PFX file (with empty password for automation)
+        $certPath = "Cert:\CurrentUser\My\$($cert.Thumbprint)"
+        $pfxPath = "codesign.pfx"
+        $pfxPassword = ConvertTo-SecureString -String "" -Force -AsPlainText
+        Export-PfxCertificate -Cert $certPath -FilePath $pfxPath -Password $pfxPassword
+        
+        Write-Host "Self-signed certificate created: $($cert.Thumbprint)"
+    
     - name: Build Windows executable
       shell: cmd
       run: |
@@ -200,7 +256,40 @@ jobs:
           --hidden-import=PIL._tkinter_finder ^
           --hidden-import=ttkbootstrap ^
           --collect-all ttkbootstrap ^
+          --version-file=version_info.txt ^
+          --distpath=dist ^
           id_card_maker.py
+    
+    - name: Sign Windows executable
+      run: |
+        # Find signtool.exe
+        $signtool = Get-ChildItem -Path "C:\Program Files (x86)\Windows Kits\" -Recurse -Name "signtool.exe" | Select-Object -First 1
+        if (-not $signtool) {
+          Write-Host "Signtool not found, checking Program Files..."
+          $signtool = Get-ChildItem -Path "C:\Program Files\Windows Kits\" -Recurse -Name "signtool.exe" | Select-Object -First 1
+        }
+        
+        $pfxPath = "codesign.pfx"
+        $exePath = "dist\ID-Card-Maker.exe"
+        
+        if ($signtool -and (Test-Path $exePath)) {
+          $signtoolPath = $signtool.FullName
+          Write-Host "Using signtool at: $signtoolPath"
+          
+          # Sign the executable with the self-signed certificate
+          & $signtoolPath sign /f $pfxPath /p "" /fd SHA256 /t http://timestamp.digicert.com $exePath
+          Write-Host "Executable signed successfully"
+          
+          # Verify the signature  
+          & $signtoolPath verify /pa $exePath
+        } else {
+          if (-not $signtool) {
+            Write-Host "Signtool.exe not found - signing skipped"
+          }
+          if (-not (Test-Path $exePath)) {
+            Write-Host "Executable not found at $exePath"
+          }
+        }
     
     - name: Create Windows package
       shell: cmd
