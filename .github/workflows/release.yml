@@ -18,6 +18,7 @@ jobs:
     if: github.event_name == 'push' && (github.ref == 'refs/heads/release' || startsWith(github.ref, 'refs/tags/v'))
     outputs:
       version: ${{ steps.get_version.outputs.VERSION }}
+      upload_url: ${{ steps.create_release.outputs.upload_url }}
     steps:
     - uses: actions/checkout@v4
       with:
@@ -72,35 +73,36 @@ jobs:
         fi
         echo "Generated version: ${VERSION}"
     
-    - name: Create tag and release
+    - name: Create tag
+      if: steps.get_version.outputs.IS_AUTO_RELEASE == 'true'
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       run: |
         VERSION="${{ steps.get_version.outputs.VERSION }}"
         COMMIT_MSG=$(git log -1 --pretty=format:"%s")
-        COMMIT_HASH=$(git rev-parse --short HEAD)
         
         git config user.name "github-actions[bot]"
         git config user.email "github-actions[bot]@users.noreply.github.com"
         
-        # For auto-releases, clean up any existing tag/release
-        if [[ "${{ steps.get_version.outputs.IS_AUTO_RELEASE }}" == "true" ]]; then
-          # Delete existing release and tag if they exist
-          gh release delete "$VERSION" --yes 2>/dev/null || true
-          git tag -d "$VERSION" 2>/dev/null || true
-          git push origin ":refs/tags/$VERSION" 2>/dev/null || true
-          
-          # Create new tag
-          git tag -a "$VERSION" -m "Auto-release $VERSION - $COMMIT_MSG"
-          git push origin "$VERSION"
-        fi
+        # Delete existing release and tag if they exist
+        gh release delete "$VERSION" --yes 2>/dev/null || true
+        git tag -d "$VERSION" 2>/dev/null || true
+        git push origin ":refs/tags/$VERSION" 2>/dev/null || true
         
-        gh release create "$VERSION" \
-          --title "ID Card Maker $VERSION" \
-          --notes "## 🆕 ID Card Maker Release $VERSION
-          
-          **Latest Changes:** $COMMIT_MSG  
-          **Commit:** $COMMIT_HASH
+        # Create new tag
+        git tag -a "$VERSION" -m "Auto-release $VERSION - $COMMIT_MSG"
+        git push origin "$VERSION"
+    
+    - name: Create Release
+      id: create_release
+      uses: actions/create-release@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        tag_name: ${{ steps.get_version.outputs.VERSION }}
+        release_name: ID Card Maker ${{ steps.get_version.outputs.VERSION }}
+        body: |
+          ## 🆕 ID Card Maker Release ${{ steps.get_version.outputs.VERSION }}
           
           Professional bulk ID card printing solution with improved UI and features.
           
@@ -113,27 +115,29 @@ jobs:
           - **Multiple Formats**: Support for various image formats (JPEG, PNG, TIFF, etc.)
           
           ### 📦 Downloads:
-          - **Windows**: \`ID-Card-Maker.exe\` - Standalone executable for Windows
-          - **macOS**: \`id-card-maker-macos.zip\` - Application bundle for macOS
-          - **Linux**: \`id-card-maker-linux.tar.gz\` - Executable for Linux distributions
+          - **Windows**: `ID-Card-Maker.exe` - Standalone executable for Windows
+          - **macOS**: `id-card-maker-macos.zip` - Application bundle for macOS
+          - **Linux**: `id-card-maker-linux.tar.gz` - Executable for Linux distributions
           
           ### 🚀 Quick Start:
           1. Download the appropriate file for your operating system
           2. Extract (if needed) and run the application
           3. Load your ID card images using the Browse buttons
           4. Adjust settings as needed (card dimensions, spacing, etc.)
-          5. Click \"Generate PDF Files\" to create print-ready PDFs
+          5. Click "Generate PDF Files" to create print-ready PDFs
           
           ### 💡 Tips:
           - Use the crop editor for precise card boundary selection
           - Enable crop marks for easier cutting
-          - For duplex printing, enable \"Rotate back images 180°\"
+          - For duplex printing, enable "Rotate back images 180°"
           
           ---
           
           **System Requirements:**
           - Windows 10/11, macOS 10.14+, or modern Linux distribution
-          - No Python installation required - fully self-contained executables"
+          - No Python installation required - fully self-contained executables
+        draft: false
+        prerelease: false
 
   build-windows:
     runs-on: windows-latest
@@ -219,11 +223,14 @@ jobs:
     
     - name: Upload Windows Release Asset
       if: needs.create-release.result == 'success'
+      uses: actions/upload-release-asset@v1
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      run: |
-        gh release upload ${{ needs.create-release.outputs.version }} \
-          ./dist/ID-Card-Maker.exe --clobber
+      with:
+        upload_url: ${{ needs.create-release.outputs.upload_url }}
+        asset_path: ./dist/ID-Card-Maker.exe
+        asset_name: ID-Card-Maker.exe
+        asset_content_type: application/octet-stream
 
   build-macos:
     runs-on: macos-latest
@@ -297,11 +304,14 @@ jobs:
     
     - name: Upload macOS Release Asset
       if: needs.create-release.result == 'success'
+      uses: actions/upload-release-asset@v1
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      run: |
-        gh release upload ${{ needs.create-release.outputs.version }} \
-          ./id-card-maker-macos.zip --clobber
+      with:
+        upload_url: ${{ needs.create-release.outputs.upload_url }}
+        asset_path: ./id-card-maker-macos.zip
+        asset_name: id-card-maker-macos.zip
+        asset_content_type: application/zip
 
   build-linux:
     runs-on: ubuntu-latest
@@ -365,8 +375,11 @@ jobs:
     
     - name: Upload Linux Release Asset
       if: needs.create-release.result == 'success'
+      uses: actions/upload-release-asset@v1
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      run: |
-        gh release upload ${{ needs.create-release.outputs.version }} \
-          ./id-card-maker-linux.tar.gz --clobber
+      with:
+        upload_url: ${{ needs.create-release.outputs.upload_url }}
+        asset_path: ./id-card-maker-linux.tar.gz
+        asset_name: id-card-maker-linux.tar.gz
+        asset_content_type: application/gzip
