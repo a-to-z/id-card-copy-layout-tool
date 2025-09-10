@@ -72,24 +72,7 @@ jobs:
         fi
         echo "Generated version: ${VERSION}"
     
-    - name: Create or update tag
-      if: steps.get_version.outputs.IS_AUTO_RELEASE == 'true'
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      run: |
-        VERSION="${{ steps.get_version.outputs.VERSION }}"
-        git config user.name "github-actions[bot]"
-        git config user.email "github-actions[bot]@users.noreply.github.com"
-        
-        # Delete tag if it exists
-        git tag -d "$VERSION" 2>/dev/null || true
-        git push origin ":refs/tags/$VERSION" 2>/dev/null || true
-        
-        # Create new tag
-        git tag -a "$VERSION" -m "Auto-release $VERSION"
-        git push origin "$VERSION"
-    
-    - name: Create Release
+    - name: Create tag and release
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       run: |
@@ -97,9 +80,19 @@ jobs:
         COMMIT_MSG=$(git log -1 --pretty=format:"%s")
         COMMIT_HASH=$(git rev-parse --short HEAD)
         
-        # Delete existing release if it exists (for auto-releases)
+        git config user.name "github-actions[bot]"
+        git config user.email "github-actions[bot]@users.noreply.github.com"
+        
+        # For auto-releases, clean up any existing tag/release
         if [[ "${{ steps.get_version.outputs.IS_AUTO_RELEASE }}" == "true" ]]; then
+          # Delete existing release and tag if they exist
           gh release delete "$VERSION" --yes 2>/dev/null || true
+          git tag -d "$VERSION" 2>/dev/null || true
+          git push origin ":refs/tags/$VERSION" 2>/dev/null || true
+          
+          # Create new tag
+          git tag -a "$VERSION" -m "Auto-release $VERSION - $COMMIT_MSG"
+          git push origin "$VERSION"
         fi
         
         gh release create "$VERSION" \
